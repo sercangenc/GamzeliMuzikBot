@@ -8,6 +8,16 @@ Telegram gruplarında sesli sohbete katılarak YouTube'dan müzik yayınlayan bi
 - `cd music-bot && python generate_session.py` — asistan hesabı oturumu oluştur (bir kez)
 - Gerekli env: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_API_ID`, `TELEGRAM_API_HASH`, `TELEGRAM_SESSION_STRING`
 
+### 7/24 Yayın (Deployment)
+
+- Bot bir artifact DEĞİL; repl seviyesindeki `.replit` `[deployment]` ile yayınlanır (artifact.toml ile değil).
+- `deploymentTarget = "vm"` (her zaman açık Reserved VM) — bot sürekli MTProto bağlantısı tutup `idle()` yaptığı için autoscale uygun değildir.
+- `run = ["sh", "-c", "cd music-bot && python bot.py"]`.
+- `.replit` doğrudan düzenlenemez; `verifyAndReplaceDotReplit` callback'i ile değiştirilir.
+- Üretimde Python bağımlılıkları kök `pyproject.toml`'dan kurulur (`music-bot/requirements.txt` deployment build tarafından OKUNMAZ). Sürümler sabitlenmiştir.
+- Üretimde gerekli: ffmpeg (`replit.nix`'te) + yukarıdaki Telegram secret'ları.
+- Geliştirme ortamı uykuya geçer/kapanırsa workflow durur; sadece yayınlanmış VM 7/24 çalışır.
+
 ## Stack
 
 - Python 3.11

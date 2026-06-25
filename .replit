@@ -1,12 +1,8 @@
 modules = ["nodejs-24", "python-3.11"]
 
 [deployment]
-router = "application"
-deploymentTarget = "autoscale"
-
-[deployment.postBuild]
-args = ["pnpm", "store", "prune"]
-env = { "CI" = "true" }
+deploymentTarget = "vm"
+run = ["sh", "-c", "cd music-bot && python bot.py"]
 
 [workflows]
 runButton = "Project"
