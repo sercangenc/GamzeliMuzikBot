@@ -5,7 +5,8 @@ Telegram gruplarında sesli sohbete katılarak YouTube'dan müzik yayınlayan bi
 ## Run & Operate
 
 - `cd music-bot && python bot.py` — botu başlat (workflow: "Telegram Müzik Botu")
-- Gerekli env: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_API_ID`, `TELEGRAM_API_HASH`
+- `cd music-bot && python generate_session.py` — asistan hesabı oturumu oluştur (bir kez)
+- Gerekli env: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_API_ID`, `TELEGRAM_API_HASH`, `TELEGRAM_SESSION_STRING`
 
 ## Stack
 
@@ -17,7 +18,8 @@ Telegram gruplarında sesli sohbete katılarak YouTube'dan müzik yayınlayan bi
 
 ## Where things live
 
-- `music-bot/bot.py` — Ana bot dosyası, komut handler'ları
+- `music-bot/bot.py` — Ana bot dosyası, komut handler'ları (bot + asistan istemcisi)
+- `music-bot/generate_session.py` — Asistan hesabı için session string üreten script
 - `music-bot/queue_manager.py` — Sıra yönetimi
 - `music-bot/downloader.py` — yt-dlp ile ses indirme
 - `music-bot/downloads/` — İndirilen müzik dosyaları (geçici)
@@ -40,17 +42,23 @@ Telegram gruplarında sesli sohbete katılarak YouTube'dan müzik yayınlayan bi
 
 ## Architecture decisions
 
-- `PyTgCalls.run()` kullanılır (`app.start()` ayrıca çağrılmaz — PyTgCalls içinde zaten var)
+- **İKİ istemci kullanılır**: `app` (bot, komutlar için) + `assistant` (gerçek kullanıcı hesabı, sesli sohbete katılır)
+- **Botlar sesli sohbete katılamaz** — Telegram bunu sadece kullanıcı hesaplarına izin verir. Bu yüzden asistan hesabı şart.
+- `PyTgCalls(assistant)` — asistan hesabını sarar, botu DEĞİL
+- Asistan hesabı `TELEGRAM_SESSION_STRING` ile (session string) giriş yapar
+- Asistan, `/play` çağrılınca davet linkiyle gruba otomatik katılmaya çalışır (yoksa manuel eklenmeli)
 - `py-tgcalls` paketi `pytgcalls` adıyla import edilir
 - yt-dlp ile indirme async executor'da çalıştırılır (thread blocking önleme)
 - `StreamEnded` event'i ile otomatik sıra geçişi yapılır
 
 ## Gotchas
 
+- **Bot hesabı sesli sohbete katılamaz** — `phone.CreateGroupCall` ile `400 BOT_METHOD_INVALID` hatası verir; asistan kullanıcı hesabı zorunludur
+- `TELEGRAM_SESSION_STRING` interaktif olarak `generate_session.py` ile üretilir (telefon + OTP gerekir)
 - `pytgcalls` (eski) ve `py-tgcalls` (yeni) aynı `pytgcalls` modül adını kullanır — eski sürüm kaldırılmalı
-- `call_py.run()` hem `app.start()` hem `idle()` içerir — ayrıca çağırmaya gerek yok
 - ffmpeg sistem bağımlılığı olarak kurulu olmalıdır
-- Bot grupta admin olmalı ve sesli sohbet yönetme izni olmalıdır
+- Asistan hesabı grubun ÜYESİ olmalı (sesli sohbete katılabilmek için)
+- Asistan ve bot ikisi de gruba eklenmeli
 
 ## User preferences
 

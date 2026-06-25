@@ -1,0 +1,1 @@
+- [Telegram voice chat needs a userbot](telegram-voicechat-userbot.md) — bots can't join group voice chats (BOT_METHOD_INVALID); needs an assistant user-account session string + bot token.
