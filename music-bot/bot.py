@@ -253,6 +253,16 @@ async def help_cmd(client: Client, message: Message):
     )
 
 
+@app.on_message(group=1)
+async def _debug_log(client: Client, message: Message):
+    try:
+        text = message.text or message.caption or "<medya/servis mesajı>"
+        ctype = getattr(message.chat, "type", None)
+        print(f"[DEBUG] Gelen mesaj | chat={message.chat.id} tip={ctype} text={text!r}")
+    except Exception as e:
+        print(f"[DEBUG] log hatası: {e}")
+
+
 @call_py.on_update()
 async def handle_update(client: PyTgCalls, update):
     if isinstance(update, StreamEnded):
