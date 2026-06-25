@@ -24,12 +24,12 @@ args = "Telegram Müzik Botu"
 name = "Telegram Müzik Botu"
 author = "agent"
 
+[workflows.workflow.metadata]
+outputType = "console"
+
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "cd music-bot && python bot.py"
-
-[workflows.workflow.metadata]
-outputType = "console"
 
 [agent]
 stack = "PNPM_WORKSPACE"

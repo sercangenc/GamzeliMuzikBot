@@ -24,6 +24,13 @@ if not SESSION_STRING:
         "    cd music-bot && python generate_session.py\n"
     )
 
+# İstemcileri oluşturmadan ÖNCE tek bir event loop sabitle.
+# Pyrogram/PyTgCalls istemcileri __init__ anında asyncio.get_event_loop() ile loop'u yakalar.
+# asyncio.run() YENİ bir loop oluşturduğundan, dispatcher hiç sürülmeyen eski loop'ta kalır
+# ve bot HİÇ güncelleme almaz. Bu yüzden loop'u burada sabitleyip aynı loop'ta çalıştırıyoruz.
+loop = asyncio.new_event_loop()
+asyncio.set_event_loop(loop)
+
 # Bot hesabı — komutları işler (bot_token, oturum dosyası yok)
 app = Client(
     "music_bot", api_id=API_ID, api_hash=API_HASH,
@@ -102,7 +109,7 @@ async def _play_or_leave(chat_id: int):
         await _play_or_leave(chat_id)
 
 
-@app.on_message(filters.command("play") & filters.group)
+@app.on_message(filters.command(["play", "oynat", "çal", "cal"]) & filters.group)
 async def play_cmd(client: Client, message: Message):
     if len(message.command) < 2:
         await message.reply("Kullanım: `/play <şarkı adı veya YouTube linki>`")
@@ -164,7 +171,7 @@ async def play_cmd(client: Client, message: Message):
                 await status_msg.edit("❌ Müzik çalınamadı. Lütfen tekrar deneyin.")
 
 
-@app.on_message(filters.command("skip") & filters.group)
+@app.on_message(filters.command(["skip", "atla", "geç", "gec"]) & filters.group)
 async def skip_cmd(client: Client, message: Message):
     chat_id = message.chat.id
     async with get_lock(chat_id):
@@ -183,7 +190,7 @@ async def skip_cmd(client: Client, message: Message):
         await _play_or_leave(chat_id)
 
 
-@app.on_message(filters.command("stop") & filters.group)
+@app.on_message(filters.command(["stop", "durdur", "dur", "son"]) & filters.group)
 async def stop_cmd(client: Client, message: Message):
     chat_id = message.chat.id
     async with get_lock(chat_id):
@@ -198,7 +205,7 @@ async def stop_cmd(client: Client, message: Message):
             await message.reply("⏹ Yayın durduruldu.")
 
 
-@app.on_message(filters.command("pause") & filters.group)
+@app.on_message(filters.command(["pause", "duraklat", "durakla"]) & filters.group)
 async def pause_cmd(client: Client, message: Message):
     chat_id = message.chat.id
     try:
@@ -209,7 +216,7 @@ async def pause_cmd(client: Client, message: Message):
         await message.reply("⚠️ Duraklatılamadı. Şu an çalan bir şarkı olmayabilir.")
 
 
-@app.on_message(filters.command("resume") & filters.group)
+@app.on_message(filters.command(["resume", "devam"]) & filters.group)
 async def resume_cmd(client: Client, message: Message):
     chat_id = message.chat.id
     try:
@@ -220,7 +227,7 @@ async def resume_cmd(client: Client, message: Message):
         await message.reply("⚠️ Devam ettirilemedi. Müzik zaten çalıyor olabilir.")
 
 
-@app.on_message(filters.command("queue") & filters.group)
+@app.on_message(filters.command(["queue", "sıra", "sira", "kuyruk"]) & filters.group)
 async def queue_cmd(client: Client, message: Message):
     chat_id = message.chat.id
     items = queues.get_queue(chat_id)
@@ -237,30 +244,20 @@ async def queue_cmd(client: Client, message: Message):
     await message.reply("\n".join(lines))
 
 
-@app.on_message(filters.command(["help", "start"]) & filters.group)
+@app.on_message(filters.command(["help", "start", "yardım", "yardim"]) & filters.group)
 async def help_cmd(client: Client, message: Message):
     await message.reply(
         "🎵 **Telegram Müzik Botu**\n\n"
         "**Komutlar:**\n"
-        "▶️ `/play <şarkı adı veya link>` — Müzik çal veya sıraya ekle\n"
-        "⏭ `/skip` — Sonraki şarkıya geç\n"
-        "⏸ `/pause` — Duraklat\n"
-        "▶️ `/resume` — Devam et\n"
-        "⏹ `/stop` — Durdur ve sesli sohbetten ayrıl\n"
-        "📋 `/queue` — Müzik sırasını göster\n\n"
+        "▶️ `/play` (`/oynat`) `<şarkı adı veya link>` — Müzik çal veya sıraya ekle\n"
+        "⏭ `/skip` (`/atla`) — Sonraki şarkıya geç\n"
+        "⏸ `/pause` (`/duraklat`) — Duraklat\n"
+        "▶️ `/resume` (`/devam`) — Devam et\n"
+        "⏹ `/stop` (`/durdur`) — Durdur ve sesli sohbetten ayrıl\n"
+        "📋 `/queue` (`/sıra`) — Müzik sırasını göster\n\n"
         "💡 YouTube linki veya şarkı adı yazabilirsiniz.\n"
         "⚠️ Kullanmadan önce grupta sesli sohbet açık olmalıdır."
     )
-
-
-@app.on_message(group=1)
-async def _debug_log(client: Client, message: Message):
-    try:
-        text = message.text or message.caption or "<medya/servis mesajı>"
-        ctype = getattr(message.chat, "type", None)
-        print(f"[DEBUG] Gelen mesaj | chat={message.chat.id} tip={ctype} text={text!r}")
-    except Exception as e:
-        print(f"[DEBUG] log hatası: {e}")
 
 
 @call_py.on_update()
@@ -293,11 +290,18 @@ async def main():
         await idle()
     finally:
         if app_started:
-            await app.stop()
+            try:
+                await app.stop()
+            except Exception as e:
+                print(f"[shutdown] app.stop hatası: {e}")
         if call_started:
-            await call_py.stop()
+            # PyTgCalls'ın stop() metodu yok; alttaki asistan istemcisini durdurmak yeterli
+            try:
+                await assistant.stop()
+            except Exception as e:
+                print(f"[shutdown] assistant.stop hatası: {e}")
         clear_downloads()
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    loop.run_until_complete(main())

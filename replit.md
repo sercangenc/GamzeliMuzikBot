@@ -26,13 +26,15 @@ Telegram gruplarında sesli sohbete katılarak YouTube'dan müzik yayınlayan bi
 
 ## Bot Komutları
 
-- `/play <şarkı adı veya YouTube linki>` — Sesli sohbete katıl ve çal
-- `/skip` — Sonraki şarkıya geç
-- `/pause` — Duraklat
-- `/resume` — Devam et
-- `/stop` — Durdur ve sesli sohbetten ayrıl
-- `/queue` — Sırayı göster
-- `/help` — Yardım mesajı
+Her komutun Türkçe alias'ları da vardır (parantez içinde):
+
+- `/play` (`/oynat`, `/çal`, `/cal`) `<şarkı adı veya YouTube linki>` — Sesli sohbete katıl ve çal
+- `/skip` (`/atla`, `/geç`, `/gec`) — Sonraki şarkıya geç
+- `/pause` (`/duraklat`, `/durakla`) — Duraklat
+- `/resume` (`/devam`) — Devam et
+- `/stop` (`/durdur`, `/dur`, `/son`) — Durdur ve sesli sohbetten ayrıl
+- `/queue` (`/sıra`, `/sira`, `/kuyruk`) — Sırayı göster
+- `/help` (`/yardım`, `/yardim`, `/start`) — Yardım mesajı
 
 ## Kullanım
 
@@ -50,6 +52,8 @@ Telegram gruplarında sesli sohbete katılarak YouTube'dan müzik yayınlayan bi
 - `py-tgcalls` paketi `pytgcalls` adıyla import edilir
 - yt-dlp ile indirme async executor'da çalıştırılır (thread blocking önleme)
 - `StreamEnded` event'i ile otomatik sıra geçişi yapılır
+- **Tek event loop sabitlenir**: İstemciler (`app`, `assistant`, `call_py`) modül import edilirken oluşturulduğu için, oluşturulmadan ÖNCE `asyncio.new_event_loop()` + `asyncio.set_event_loop(loop)` yapılır ve `loop.run_until_complete(main())` ile çalıştırılır (`asyncio.run()` DEĞİL)
+- Kapatma: PyTgCalls'ın `stop()` metodu yok; `call_py.start()` asistanı başlattığı için kapatmada `assistant.stop()` çağrılır
 
 ## Gotchas
 
@@ -59,6 +63,7 @@ Telegram gruplarında sesli sohbete katılarak YouTube'dan müzik yayınlayan bi
 - ffmpeg sistem bağımlılığı olarak kurulu olmalıdır
 - Asistan hesabı grubun ÜYESİ olmalı (sesli sohbete katılabilmek için)
 - Asistan ve bot ikisi de gruba eklenmeli
+- **`asyncio.run()` KULLANMA** — Pyrogram/PyTgCalls istemcileri `__init__` anında loop'u yakalar; `asyncio.run()` yeni loop oluşturduğu için bot SESSİZCE hiç güncelleme almaz (komutlara cevap vermez, hata da loglamaz). Kapatmada `RuntimeError: ... attached to a different loop` görülür. Çözüm: istemcilerden önce loop sabitle, `loop.run_until_complete(main())` kullan
 
 ## User preferences
 
