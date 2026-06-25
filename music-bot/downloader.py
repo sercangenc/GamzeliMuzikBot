@@ -11,8 +11,38 @@ DOWNLOADS_DIR = os.path.join(os.path.dirname(__file__), "downloads")
 os.makedirs(DOWNLOADS_DIR, exist_ok=True)
 
 
+def safe_remove(path: Optional[str]):
+    """Bir dosyayı güvenle siler, hata olursa yok sayar."""
+    if not path:
+        return
+    try:
+        if os.path.exists(path):
+            os.remove(path)
+    except OSError as e:
+        print(f"[downloader] Dosya silinemedi ({path}): {e}")
+
+
+def clear_downloads():
+    """downloads/ klasöründeki tüm geçici ses dosyalarını temizler."""
+    try:
+        for name in os.listdir(DOWNLOADS_DIR):
+            safe_remove(os.path.join(DOWNLOADS_DIR, name))
+    except OSError as e:
+        print(f"[downloader] downloads temizlenemedi: {e}")
+
+
 def _is_url(query: str) -> bool:
     return re.match(r"https?://", query) is not None
+
+
+def _cleanup_uid(uid: str):
+    """Belirli bir indirme denemesine ait tüm ara/yarım dosyaları siler."""
+    try:
+        for name in os.listdir(DOWNLOADS_DIR):
+            if name.startswith(uid):
+                safe_remove(os.path.join(DOWNLOADS_DIR, name))
+    except OSError as e:
+        print(f"[downloader] Ara dosya temizlenemedi ({uid}): {e}")
 
 
 def _sync_download(query: str) -> Tuple[Optional[str], Optional[str], int]:
@@ -48,9 +78,13 @@ def _sync_download(query: str) -> Tuple[Optional[str], Optional[str], int]:
                 p = os.path.join(DOWNLOADS_DIR, f"{uid}.{ext}")
                 if os.path.exists(p):
                     return p, title, duration
+            # Beklenen çıktı yok — varsa ara dosyaları temizle
+            _cleanup_uid(uid)
             return None, None, 0
     except Exception as e:
         print(f"[downloader] Hata: {e}")
+        # Yarım kalan indirme dosyalarını (.part vb.) temizle
+        _cleanup_uid(uid)
         return None, None, 0
 
 

@@ -47,3 +47,10 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# Python (music-bot)
+__pycache__/
+*.py[cod]
+*.session
+*.session-journal
+music-bot/downloads/
