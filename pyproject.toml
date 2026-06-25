@@ -3,4 +3,9 @@ name = "repl-nix-workspace"
 version = "0.1.0"
 description = "Add your description here"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "py-tgcalls==2.3.3",
+    "pyrofork==2.3.69",
+    "python-dotenv==1.2.2",
+    "yt-dlp==2026.6.9",
+]
