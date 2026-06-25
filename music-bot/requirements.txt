@@ -1,0 +1,4 @@
+pyrofork
+yt-dlp
+python-dotenv
+pytgcalls[pyrofork]

@@ -1,45 +1,57 @@
-# [Project name]
+# Telegram Müzik Botu
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+Telegram gruplarında sesli sohbete katılarak YouTube'dan müzik yayınlayan bir bot.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- `cd music-bot && python bot.py` — botu başlat (workflow: "Telegram Müzik Botu")
+- Gerekli env: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_API_ID`, `TELEGRAM_API_HASH`
 
 ## Stack
 
-- pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+- Python 3.11
+- pyrofork — Pyrogram fork, Telegram MTProto istemcisi
+- py-tgcalls (pytgcalls) v2.3.3 + ntgcalls v2.2.5 — sesli sohbet/NTgCalls bağlantısı
+- yt-dlp — YouTube ve diğer kaynaklardan ses indirme
+- ffmpeg — ses dönüştürme (system dependency)
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `music-bot/bot.py` — Ana bot dosyası, komut handler'ları
+- `music-bot/queue_manager.py` — Sıra yönetimi
+- `music-bot/downloader.py` — yt-dlp ile ses indirme
+- `music-bot/downloads/` — İndirilen müzik dosyaları (geçici)
+
+## Bot Komutları
+
+- `/play <şarkı adı veya YouTube linki>` — Sesli sohbete katıl ve çal
+- `/skip` — Sonraki şarkıya geç
+- `/pause` — Duraklat
+- `/resume` — Devam et
+- `/stop` — Durdur ve sesli sohbetten ayrıl
+- `/queue` — Sırayı göster
+- `/help` — Yardım mesajı
+
+## Kullanım
+
+1. Botu gruba ekle ve admin yap (sesli sohbet için gerekli)
+2. Grupta bir sesli sohbet başlat
+3. `/play şarkı adı` yaz
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
-
-## Product
-
-_Describe the high-level user-facing capabilities of this app once they exist._
-
-## User preferences
-
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- `PyTgCalls.run()` kullanılır (`app.start()` ayrıca çağrılmaz — PyTgCalls içinde zaten var)
+- `py-tgcalls` paketi `pytgcalls` adıyla import edilir
+- yt-dlp ile indirme async executor'da çalıştırılır (thread blocking önleme)
+- `StreamEnded` event'i ile otomatik sıra geçişi yapılır
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- `pytgcalls` (eski) ve `py-tgcalls` (yeni) aynı `pytgcalls` modül adını kullanır — eski sürüm kaldırılmalı
+- `call_py.run()` hem `app.start()` hem `idle()` içerir — ayrıca çağırmaya gerek yok
+- ffmpeg sistem bağımlılığı olarak kurulu olmalıdır
+- Bot grupta admin olmalı ve sesli sohbet yönetme izni olmalıdır
 
-## Pointers
+## User preferences
 
-- See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+_Türkçe iletişim tercih edilmektedir._
