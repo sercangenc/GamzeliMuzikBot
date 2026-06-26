@@ -10,12 +10,15 @@ Telegram gruplarında sesli sohbete katılarak YouTube'dan müzik yayınlayan bi
 
 ### 7/24 Yayın (Deployment)
 
-- Bu repl bir `PNPM_WORKSPACE` stack'idir: yayınlama (Publish) **artifact tabanlıdır**; `.replit [deployment].run` GÖZ ARDI EDİLİR. Düz `vm`+`run` ayarı "There's nothing to publish yet" verir çünkü bot bir artifact değildir.
-- Çözüm: bot, mevcut **api-server artifact'inin üretim komutuyla** çalıştırılır.
-  - `.replit [deployment]` (`verifyAndReplaceDotReplit` ile): `router = "application"` + `deploymentTarget = "vm"`. `router` kaldırılırsa publish algılaması bozulur.
-  - `artifacts/api-server/.replit-artifact/artifact.toml` → `[services.production.run]`: `["sh","-c","node ... dist/index.mjs & cd music-bot && exec python bot.py"]`. Node sunucusu `/api/healthz` health check'ini yeşil tutar; bot ön plan süreci olarak çalışır. Sadece `[services.production]` değişir, geliştirme iş akışları etkilenmez.
-  - artifact.toml yalnızca `verifyAndReplaceArtifactToml` ile düzenlenir (doğrudan DEĞİL).
-- `deploymentTarget = "vm"` (her zaman açık Reserved VM) — bot sürekli MTProto bağlantısı tutup `idle()` yaptığı için autoscale uygun değildir.
+- Bu repl bir `PNPM_WORKSPACE` stack'idir: Publish ekranı **yalnızca yayınlanabilir bir app artifact'i** (kind=`web`/`expo`/`data-visualization`) varsa açılır. `api` ve `design` türleri yayın kapısını AÇMAZ → "There's nothing to publish yet". `.replit [deployment].run` bu stack'te GÖZ ARDI EDİLİR.
+- **Çözüm (iki artifact birlikte yayınlanır):**
+  - `artifacts/muzik-botu` (kind=`web`, previewPath `/`): basit bir durum/komut sayfası. Bu artifact yalnızca Publish kapısını açan yayınlanabilir app'tir. Statik (vite build) olarak yönlendirici tarafından sunulur.
+  - `artifacts/api-server` (kind=`api`, paths `/api`): botu çalıştıran süreç. `[services.production.run]` = `["sh","-c","node ... dist/index.mjs & cd music-bot && exec python bot.py"]`. Node sunucusu `/api/healthz`'i yeşil tutar; bot ön plan süreci olarak çalışır.
+  - `router = "application"` sayesinde üretimde TÜM artifact servisleri birlikte çalışır → web "/" + api-server botu aynı VM'de.
+- **`kind` alanı `verifyAndReplaceArtifactToml` ile DEĞİŞTİRİLEMEZ** ("cannot change artifact kind"). Bu yüzden api-server "web"e çevrilemedi; ayrı bir web artifact'i (muzik-botu) oluşturuldu.
+- artifact.toml yalnızca `verifyAndReplaceArtifactToml` ile düzenlenir (doğrudan DEĞİL). `.replit` yalnızca `verifyAndReplaceDotReplit` ile.
+- `.replit [deployment]`: `router = "application"` + `deploymentTarget = "vm"`. `router` kaldırılırsa publish algılaması bozulur.
+- `deploymentTarget = "vm"` (her zaman açık Reserved VM) — bot sürekli MTProto bağlantısı tutup `idle()` yaptığı için autoscale uygun değildir. Publish ekranında **Reserved VM** seçilmeli.
 - Üretimde Python bağımlılıkları kök `pyproject.toml`'dan kurulur (`music-bot/requirements.txt` deployment build tarafından OKUNMAZ). Sürümler sabitlenmiştir.
 - Üretimde gerekli: ffmpeg (`replit.nix`'te) + yukarıdaki Telegram secret'ları.
 - Geliştirme ortamı uykuya geçer/kapanırsa workflow durur; sadece yayınlanmış VM 7/24 çalışır.
