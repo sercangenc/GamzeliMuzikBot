@@ -1,2 +1,2 @@
 - [Telegram voice chat needs a userbot](telegram-voicechat-userbot.md) — bots can't join group voice chats (BOT_METHOD_INVALID); needs an assistant user-account session string + bot token.
-- [Deploying the non-artifact Python bot 24/7](deploy-python-bot-vm.md) — bot deploys as repl-level VM (not artifact.toml); deps must be in root pyproject.toml, not just music-bot/requirements.txt.
+- [Deploying the non-artifact Python bot 24/7](deploy-python-bot-vm.md) — pnpm-workspace publish is artifact-based (.replit deployment.run ignored); host the bot via an artifact's production run + router=application + vm; deps must be in root pyproject.toml.

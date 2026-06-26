@@ -21,8 +21,9 @@ args = ["pnpm", "--filter", "@workspace/api-server", "run", "build"]
 NODE_ENV = "production"
 
 [services.production.run]
-# we don't run through pnpm to make startup faster in production
-args = ["node", "--enable-source-maps", "artifacts/api-server/dist/index.mjs"]
+# Always-on VM: start the lightweight Node health server in the background,
+# then run the Telegram music bot as the main foreground process.
+args = ["sh", "-c", "node --enable-source-maps artifacts/api-server/dist/index.mjs & cd music-bot && exec python bot.py"]
 
 [services.production.run.env]
 PORT = "8080"

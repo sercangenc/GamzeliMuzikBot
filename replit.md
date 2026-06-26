@@ -10,10 +10,12 @@ Telegram gruplarında sesli sohbete katılarak YouTube'dan müzik yayınlayan bi
 
 ### 7/24 Yayın (Deployment)
 
-- Bot bir artifact DEĞİL; repl seviyesindeki `.replit` `[deployment]` ile yayınlanır (artifact.toml ile değil).
+- Bu repl bir `PNPM_WORKSPACE` stack'idir: yayınlama (Publish) **artifact tabanlıdır**; `.replit [deployment].run` GÖZ ARDI EDİLİR. Düz `vm`+`run` ayarı "There's nothing to publish yet" verir çünkü bot bir artifact değildir.
+- Çözüm: bot, mevcut **api-server artifact'inin üretim komutuyla** çalıştırılır.
+  - `.replit [deployment]` (`verifyAndReplaceDotReplit` ile): `router = "application"` + `deploymentTarget = "vm"`. `router` kaldırılırsa publish algılaması bozulur.
+  - `artifacts/api-server/.replit-artifact/artifact.toml` → `[services.production.run]`: `["sh","-c","node ... dist/index.mjs & cd music-bot && exec python bot.py"]`. Node sunucusu `/api/healthz` health check'ini yeşil tutar; bot ön plan süreci olarak çalışır. Sadece `[services.production]` değişir, geliştirme iş akışları etkilenmez.
+  - artifact.toml yalnızca `verifyAndReplaceArtifactToml` ile düzenlenir (doğrudan DEĞİL).
 - `deploymentTarget = "vm"` (her zaman açık Reserved VM) — bot sürekli MTProto bağlantısı tutup `idle()` yaptığı için autoscale uygun değildir.
-- `run = ["sh", "-c", "cd music-bot && python bot.py"]`.
-- `.replit` doğrudan düzenlenemez; `verifyAndReplaceDotReplit` callback'i ile değiştirilir.
 - Üretimde Python bağımlılıkları kök `pyproject.toml`'dan kurulur (`music-bot/requirements.txt` deployment build tarafından OKUNMAZ). Sürümler sabitlenmiştir.
 - Üretimde gerekli: ffmpeg (`replit.nix`'te) + yukarıdaki Telegram secret'ları.
 - Geliştirme ortamı uykuya geçer/kapanırsa workflow durur; sadece yayınlanmış VM 7/24 çalışır.
