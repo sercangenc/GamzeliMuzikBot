@@ -50,18 +50,20 @@ def _sync_download(query: str) -> Tuple[Optional[str], Optional[str], int]:
     out_path = os.path.join(DOWNLOADS_DIR, f"{uid}.%(ext)s")
 
     ydl_opts = {
-        # JS runtime gerektirmeyen mobile/iOS client'ı kullan — hızlı metadata
-        "extractor_args": {"youtube": {"player_client": ["ios", "mweb"]}},
-        # m4a veya opus direkt indir — FFmpeg re-encode YOK (NTgCalls zaten decode eder)
-        "format": "bestaudio[ext=m4a]/bestaudio[ext=opus]/bestaudio[ext=webm]/bestaudio",
+        "format": "bestaudio/best",
         "outtmpl": out_path,
         "quiet": True,
         "noplaylist": True,
         "socket_timeout": 15,
         "retries": 3,
         "fragment_retries": 3,
-        "concurrent_fragment_downloads": 4,  # paralel parça indirme
-        # Postprocessor yok — direkt format, yeniden encode edilmiyor
+        "postprocessors": [
+            {
+                "key": "FFmpegExtractAudio",
+                "preferredcodec": "mp3",
+                "preferredquality": "128",
+            }
+        ],
         "default_search": "ytsearch1" if not _is_url(query) else None,
     }
 
