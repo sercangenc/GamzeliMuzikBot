@@ -244,7 +244,7 @@ async def queue_cmd(client: Client, message: Message):
     await message.reply("\n".join(lines))
 
 
-@app.on_message(filters.command(["help", "start", "yardım", "yardim"]) & filters.group)
+@app.on_message(filters.command(["help", "start", "yardım", "yardim"]))
 async def help_cmd(client: Client, message: Message):
     await message.reply(
         "🎵 **Telegram Müzik Botu**\n\n"
