@@ -79,6 +79,7 @@ Her komutun Türkçe alias'ları da vardır (parantez içinde):
 - Asistan hesabı grubun ÜYESİ olmalı (sesli sohbete katılabilmek için)
 - Asistan ve bot ikisi de gruba eklenmeli
 - **`asyncio.run()` KULLANMA** — Pyrogram/PyTgCalls istemcileri `__init__` anında loop'u yakalar; `asyncio.run()` yeni loop oluşturduğu için bot SESSİZCE hiç güncelleme almaz (komutlara cevap vermez, hata da loglamaz). Kapatmada `RuntimeError: ... attached to a different loop` görülür. Çözüm: istemcilerden önce loop sabitle, `loop.run_until_complete(main())` kullan
+- **TEK OTURUM KURALI — bot aynı anda İKİ yerde çalışamaz**: `TELEGRAM_SESSION_STRING` (asistan kullanıcı hesabı) yalnızca TEK bir yerde bağlı olabilir. Geliştirme workflow'u `python bot.py` çalıştırırken aynı anda yayınlanmış VM de botu çalıştırırsa İKİSİ DE `406 AUTH_KEY_DUPLICATED` ile çöker. Bu yüzden botu çalıştıran geliştirme workflow'u KALDIRILDI — bot SADECE üretim VM'inde çalışır. Dev'de test etmek için önce üretimi durdurun (ya da ayrı bir asistan hesabı/oturumu kullanın). AUTH_KEY_DUPLICATED genelde geçicidir; tek örnek kalınca tekrar bağlanır. Kalıcı olursa `generate_session.py` ile oturumu yeniden üretip secret'ı güncelleyin.
 
 ## User preferences
 
