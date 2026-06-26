@@ -44,6 +44,9 @@ assistant = Client(
 call_py = PyTgCalls(assistant)
 queues = QueueManager()
 
+# Asistan hesabının Telegram user ID'si — direkt ekleme için kullanılır
+_assistant_id: int | None = None
+
 # Her sohbet için ayrı kilit — sıra mutasyonlarında yarış durumunu önler
 _locks: dict[int, asyncio.Lock] = {}
 
@@ -65,13 +68,30 @@ def format_duration(seconds: int) -> str:
 
 
 async def ensure_assistant_in_chat(chat_id: int) -> bool:
-    """Asistan hesabının grupta olmasını sağlar. Başarılıysa True döner."""
+    """Asistan hesabının grupta olmasını sağlar. Başarılıysa True döner.
+
+    Sırasıyla dener:
+    1. Zaten üye mi?
+    2. Bot aracılığıyla direkt ekle (bot'un "Üye Ekleme" admin yetkisi gerekir).
+    3. Davet linki ile asistan kendi katılsın.
+    """
+    # 1. Zaten grupta mı?
     try:
         await assistant.get_chat_member(chat_id, "me")
         return True
     except Exception:
         pass
-    # Asistan grupta değil — davet linki ile katılmayı dene
+
+    # 2. Bot aracılığıyla direkt ekle
+    if _assistant_id:
+        try:
+            await app.add_chat_members(chat_id, _assistant_id)
+            print(f"[ensure_assistant] Asistan direkt eklendi: chat_id={chat_id}")
+            return True
+        except Exception as e:
+            print(f"[ensure_assistant] Direkt ekleme başarısız: {e}")
+
+    # 3. Davet linki ile katılmayı dene
     try:
         chat = await app.get_chat(chat_id)
         invite_link = getattr(chat, "invite_link", None)
@@ -82,10 +102,10 @@ async def ensure_assistant_in_chat(chat_id: int) -> bool:
                 invite_link = None
         if invite_link:
             await assistant.join_chat(invite_link)
-            await assistant.get_chat_member(chat_id, "me")
+            print(f"[ensure_assistant] Asistan davet linki ile katıldı: chat_id={chat_id}")
             return True
     except Exception as e:
-        print(f"[ensure_assistant] Katılma hatası: {e}")
+        print(f"[ensure_assistant] Davet linki ile katılma hatası: {e}")
     return False
 
 
@@ -120,7 +140,12 @@ async def play_cmd(client: Client, message: Message):
 
     chat_id = message.chat.id
 
-    # Asistanın grupta olduğundan emin ol
+    # Asistanın grupta olduğundan emin ol; gerekirse otomatik ekle/katıl
+    try:
+        await assistant.get_chat_member(chat_id, "me")
+    except Exception:
+        await status_msg.edit("🔗 Asistan gruba ekleniyor, lütfen bekleyin...")
+
     if not await ensure_assistant_in_chat(chat_id):
         try:
             me = await assistant.get_me()
@@ -282,10 +307,12 @@ async def main():
         print("✅ Asistan hesabı (PyTgCalls) başlatıldı.")
         await app.start()
         app_started = True
+        global _assistant_id
         me = await app.get_me()
         assistant_me = await assistant.get_me()
+        _assistant_id = assistant_me.id
         print(f"✅ Bot @{me.username} hazır!")
-        print(f"✅ Asistan hesabı: {assistant_me.first_name}")
+        print(f"✅ Asistan hesabı: {assistant_me.first_name} (id={_assistant_id})")
         print("🎉 Bot hazır! Grubunuzda /play komutuyla müzik çalabilirsiniz.")
         await idle()
     finally:
