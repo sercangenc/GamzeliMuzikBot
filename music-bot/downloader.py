@@ -50,15 +50,18 @@ def _sync_download(query: str) -> Tuple[Optional[str], Optional[str], int]:
     out_path = os.path.join(DOWNLOADS_DIR, f"{uid}.%(ext)s")
 
     ydl_opts = {
-        "format": "bestaudio/best",
+        "format": "bestaudio[ext=m4a]/bestaudio/best",
         "outtmpl": out_path,
         "quiet": True,
         "noplaylist": True,
+        "socket_timeout": 15,        # her TCP soketi için 15 sn timeout
+        "retries": 2,                # ağ hatalarında 2 yeniden deneme
+        "fragment_retries": 2,
         "postprocessors": [
             {
                 "key": "FFmpegExtractAudio",
                 "preferredcodec": "mp3",
-                "preferredquality": "192",
+                "preferredquality": "128",
             }
         ],
         "default_search": "ytsearch1" if not _is_url(query) else None,
@@ -78,16 +81,22 @@ def _sync_download(query: str) -> Tuple[Optional[str], Optional[str], int]:
                 p = os.path.join(DOWNLOADS_DIR, f"{uid}.{ext}")
                 if os.path.exists(p):
                     return p, title, duration
-            # Beklenen çıktı yok — varsa ara dosyaları temizle
             _cleanup_uid(uid)
             return None, None, 0
     except Exception as e:
         print(f"[downloader] Hata: {e}")
-        # Yarım kalan indirme dosyalarını (.part vb.) temizle
         _cleanup_uid(uid)
         return None, None, 0
 
 
 async def download_audio(query: str) -> Tuple[Optional[str], Optional[str], int]:
+    """Sesi indirir. 3 dakika içinde bitmezse timeout döner."""
     loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(None, _sync_download, query)
+    try:
+        return await asyncio.wait_for(
+            loop.run_in_executor(None, _sync_download, query),
+            timeout=180,
+        )
+    except asyncio.TimeoutError:
+        print(f"[downloader] Timeout: '{query}' 3 dakikada indirilemedi.")
+        return None, None, 0
