@@ -1,2 +1,1 @@
-- [Telegram voice chat needs a userbot](telegram-voicechat-userbot.md) — bots can't join group voice chats (BOT_METHOD_INVALID); needs an assistant user-account session string + bot token.
-- [Deploying the non-artifact Python bot 24/7](deploy-python-bot-vm.md) — publish needs a deployable web/expo/data-viz artifact (api/design don't count; kind is immutable); add a web app + run bot via api-server production run + router=application + vm; deps in root pyproject.toml.
+- [Publish "nothing to publish" fix](publish-detection-recreate-artifact.md) — deployable web artifact exists but Publish can't see it → rm -rf + createArtifact() to re-register; artifactId being a path string is normal, not the cause.
