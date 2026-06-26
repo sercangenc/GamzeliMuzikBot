@@ -50,13 +50,15 @@ def _sync_download(query: str) -> Tuple[Optional[str], Optional[str], int]:
     out_path = os.path.join(DOWNLOADS_DIR, f"{uid}.%(ext)s")
 
     ydl_opts = {
-        "format": "bestaudio[ext=m4a]/bestaudio/best",
+        # JS runtime gerektirmeyen mobile/iOS client'ları öncelikle kullan
+        "extractor_args": {"youtube": {"player_client": ["ios", "mweb"]}},
+        "format": "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/best",
         "outtmpl": out_path,
         "quiet": True,
         "noplaylist": True,
-        "socket_timeout": 15,        # her TCP soketi için 15 sn timeout
-        "retries": 2,                # ağ hatalarında 2 yeniden deneme
-        "fragment_retries": 2,
+        "socket_timeout": 15,
+        "retries": 3,
+        "fragment_retries": 3,
         "postprocessors": [
             {
                 "key": "FFmpegExtractAudio",

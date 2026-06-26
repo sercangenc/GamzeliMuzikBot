@@ -158,9 +158,13 @@ async def play_cmd(client: Client, message: Message):
         )
         return
 
+    await status_msg.edit(f"⬇️ İndiriliyor: **{query}**...")
     file_path, title, duration = await download_audio(query)
     if not file_path:
-        await status_msg.edit("❌ Şarkı bulunamadı veya indirilemedi.")
+        await status_msg.edit(
+            f"❌ Şarkı bulunamadı veya indirilemedi.\n"
+            f"💡 YouTube linki yerine şarkı adı deneyin (veya tam tersi)."
+        )
         return
 
     requester = message.from_user.first_name if message.from_user else "Bilinmiyor"
