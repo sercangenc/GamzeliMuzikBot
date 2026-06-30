@@ -1,0 +1,15 @@
+[Unit]
+Description=Gamzeli-muzik Telegram Bot
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/gamzeli-muzik
+EnvironmentFile=/home/ubuntu/gamzeli-muzik/.env
+ExecStart=/home/ubuntu/gamzeli-muzik/venv/bin/python /home/ubuntu/gamzeli-muzik/main.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

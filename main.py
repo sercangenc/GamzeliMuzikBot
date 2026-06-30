@@ -14,7 +14,7 @@ from pytgcalls.types.input_stream import AudioPiped
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("gamzeli")
 
-# Environment
+# read envs early but DO NOT create Clients at import time
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 API_ID = int(os.getenv("API_ID", "0"))
 API_HASH = os.getenv("API_HASH", "")
@@ -24,11 +24,6 @@ OWNER_ID = int(os.getenv("OWNER_ID", "0"))
 if not all([BOT_TOKEN, API_ID, API_HASH, ASSISTANT_SESSION]):
     log.error("BOT_TOKEN, API_ID, API_HASH ve ASSISTANT_SESSION env'leri doldurulmalı.")
     raise SystemExit(1)
-
-# Clients
-bot = Client("bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
-assistant = Client(session_name=ASSISTANT_SESSION, api_id=API_ID, api_hash=API_HASH)
-pytgcalls = PyTgCalls(assistant)
 
 
 def _is_url(s: str) -> bool:
@@ -60,7 +55,6 @@ def _download_blocking(query: str) -> str:
     ]
     log.info("Running: %s", " ".join(cmd))
     try:
-        # capture output for debugging
         completed = subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         log.debug("yt-dlp stdout: %s", completed.stdout.decode(errors='ignore'))
         log.debug("yt-dlp stderr: %s", completed.stderr.decode(errors='ignore'))
@@ -78,61 +72,83 @@ def _download_blocking(query: str) -> str:
     return files[0]
 
 
-@bot.on_message(filters.command("start") & filters.private)
-async def start_cmd(c: Client, m: Message):
-    await m.reply_text("Gamzeli-muzik hazır. Grup içinde /play <youtube_url veya arama terimi> kullan.")
+def register_handlers(bot: Client, assistant: Client, pytgcalls: PyTgCalls):
+    """Register message handlers for bot and group call management."""
+    
+    @bot.on_message(filters.command("start") & filters.private)
+    async def start_cmd(c: Client, m: Message):
+        await m.reply_text("Gamzeli-muzik hazır. Grup içinde /play <youtube_url veya arama terimi> kullan.")
+
+    @bot.on_message(filters.command("play") & (filters.group | filters.private))
+    async def play_cmd(c: Client, m: Message):
+        if len(m.command) < 2:
+            await m.reply_text("Kullanım: /play <YouTube URL veya arama terimi>")
+            return
+        query = m.text.split(None, 1)[1].strip()
+        msg = await m.reply_text("İndiriliyor...")
+
+        try:
+            path = await download_ytdlp(query)
+        except FileNotFoundError:
+            await msg.edit_text("Şarkı bulunamadı. Lütfen farklı bir arama terimi veya doğrudan YouTube URL'si deneyin.")
+            return
+        except Exception as e:
+            log.exception("İndirme/işlem hatası")
+            await msg.edit_text(f"İndirme hatası: {e}")
+            return
+
+        try:
+            await msg.edit_text("Sesli sohbete bağlanılıyor ve oynatılıyor...")
+            await pytgcalls.join_group_call(
+                m.chat.id,
+                AudioPiped(path),
+            )
+            await msg.edit_text("Çalınıyor ▶️")
+        except Exception as e:
+            log.exception("Oynatma hatası")
+            await msg.edit_text(f"Oynatma hatası: {e}")
+
+    @bot.on_message(filters.command("stop") & (filters.group | filters.private))
+    async def stop_cmd(c: Client, m: Message):
+        try:
+            await pytgcalls.leave_group_call(m.chat.id)
+            await m.reply_text("Durduruldu.")
+        except Exception as e:
+            log.exception("Stop error")
+            await m.reply_text(f"Hata: {e}")
 
 
-@bot.on_message(filters.command("play") & (filters.group | filters.private))
-async def play_cmd(c: Client, m: Message):
-    if len(m.command) < 2:
-        await m.reply_text("Kullanım: /play <YouTube URL veya arama terimi>")
-        return
-    query = m.text.split(None, 1)[1].strip()
-    msg = await m.reply_text("İndiriliyor...")
+async def main_async():
+    """Main async function: create clients, register handlers, and run bot."""
+    # CREATE clients HERE so they bind to the currently running event loop
+    # This is critical: Pyrogram/PyTgCalls capture the event loop at __init__
+    bot = Client("bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
+    assistant = Client(session_name=ASSISTANT_SESSION, api_id=API_ID, api_hash=API_HASH)
+    pytgcalls = PyTgCalls(assistant)
 
-    try:
-        path = await download_ytdlp(query)
-    except FileNotFoundError:
-        await msg.edit_text("Şarkı bulunamadı. Lütfen farklı bir arama terimi veya doğrudan YouTube URL'si deneyin.")
-        return
-    except Exception as e:
-        log.exception("İndirme/işlem hatası")
-        await msg.edit_text(f"İndirme hatası: {e}")
-        return
+    # register handlers
+    register_handlers(bot, assistant, pytgcalls)
 
-    try:
-        await msg.edit_text("Sesli sohbete bağlanılıyor ve oynatılıyor...")
-        await pytgcalls.join_group_call(
-            m.chat.id,
-            AudioPiped(path),
-        )
-        await msg.edit_text("Çalınıyor ▶️")
-    except Exception as e:
-        log.exception("Oynatma hatası")
-        await msg.edit_text(f"Oynatma hatası: {e}")
-
-
-@bot.on_message(filters.command("stop") & (filters.group | filters.private))
-async def stop_cmd(c: Client, m: Message):
-    try:
-        await pytgcalls.leave_group_call(m.chat.id)
-        await m.reply_text("Durduruldu.")
-    except Exception as e:
-        log.exception("Stop error")
-        await m.reply_text(f"Hata: {e}")
-
-
-async def main():
     await assistant.start()
     await pytgcalls.start()
     await bot.start()
     log.info("Gamzeli-muzik çalışıyor.")
+    # block forever
     await asyncio.get_event_loop().create_future()
 
 
 if __name__ == "__main__":
+    # create a dedicated loop and run it (avoid asyncio.run to control loop lifetime)
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     try:
-        asyncio.run(main())
+        loop.run_until_complete(main_async())
     except KeyboardInterrupt:
         log.info("Kapanıyor...")
+    finally:
+        # try graceful shutdown if needed
+        pending = asyncio.all_tasks(loop=loop)
+        for t in pending:
+            t.cancel()
+        loop.run_until_complete(asyncio.sleep(0.1))
+        loop.close()
