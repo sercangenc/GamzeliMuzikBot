@@ -23,11 +23,13 @@ NODE_ENV = "production"
 [services.production.run]
 # Always-on VM: start the lightweight Node health server in the background,
 # then run the Telegram music bot as the main foreground process.
-args = ["sh", "-c", "node --enable-source-maps artifacts/api-server/dist/index.mjs & cd music-bot && exec python bot.py"]
+# python -u => unbuffered stdout so bot/download logs appear in deployment logs.
+args = ["sh", "-c", "node --enable-source-maps artifacts/api-server/dist/index.mjs & cd music-bot && exec python -u bot.py"]
 
 [services.production.run.env]
 PORT = "8080"
 NODE_ENV = "production"
+PYTHONUNBUFFERED = "1"
 
 [services.production.health.startup]
 path = "/api/healthz"
