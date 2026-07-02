@@ -189,7 +189,8 @@ async def play_cmd(client: Client, message: Message):
             try:
                 await call_py.play(chat_id, MediaStream(file_path))
                 await status_msg.edit(
-                    f"▶️ Çalınıyor: **{title}**\n⏱ Süre: {format_duration(duration)}"
+                    f"▶️ Çalınıyor: **{title}**\n⏱ Süre: {format_duration(duration)}\n\n"
+                    f"❤️ ( Seni Seviyorum Gamzelim )"
                 )
             except NoActiveGroupCall:
                 queues.clear(chat_id)
