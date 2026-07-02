@@ -100,3 +100,54 @@ async def download_audio(query: str) -> Tuple[Optional[str], Optional[str], int]
     except asyncio.TimeoutError:
         print(f"[downloader] Timeout: '{query}' 3 dakikada indirilemedi.")
         return None, None, 0
+
+
+def _sync_get_stream(query: str) -> Tuple[Optional[str], Optional[str], int]:
+    """İndirmeden doğrudan akış URL'sini çıkarır (hızlı başlangıç için)."""
+    ydl_opts = {
+        "format": "bestaudio[ext=m4a]/bestaudio/best",
+        "quiet": True,
+        "noplaylist": True,
+        "socket_timeout": 15,
+        "retries": 3,
+        "default_search": "ytsearch1" if not _is_url(query) else None,
+    }
+
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(query, download=False)
+            if "entries" in info:
+                info = info["entries"][0]
+            title = info.get("title", "Bilinmeyen")
+            duration = int(info.get("duration", 0))
+
+            url = info.get("url")
+            if not url:
+                for f in info.get("requested_formats") or []:
+                    if f.get("acodec") not in (None, "none") and f.get("url"):
+                        url = f["url"]
+                        break
+            if not url:
+                for f in info.get("formats") or []:
+                    if f.get("acodec") not in (None, "none") and f.get("url"):
+                        url = f["url"]
+            if not url:
+                return None, None, 0
+            return url, title, duration
+    except Exception as e:
+        print(f"[downloader] Akış URL hatası: {e}")
+        return None, None, 0
+
+
+async def get_audio_stream(query: str) -> Tuple[Optional[str], Optional[str], int]:
+    """İndirmeden doğrudan çalınabilir akış URL'si döndürür.
+    py-tgcalls bu URL'yi ffmpeg ile canlı akıtır → müzik neredeyse anında başlar."""
+    loop = asyncio.get_event_loop()
+    try:
+        return await asyncio.wait_for(
+            loop.run_in_executor(None, _sync_get_stream, query),
+            timeout=60,
+        )
+    except asyncio.TimeoutError:
+        print(f"[downloader] Timeout: '{query}' için akış URL'si alınamadı.")
+        return None, None, 0

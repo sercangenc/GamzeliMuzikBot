@@ -8,7 +8,7 @@ from pytgcalls.types import MediaStream, StreamEnded
 from pytgcalls.exceptions import NoActiveGroupCall
 
 from queue_manager import QueueManager
-from downloader import download_audio, clear_downloads, safe_remove
+from downloader import get_audio_stream, clear_downloads, safe_remove
 
 load_dotenv()
 
@@ -120,7 +120,12 @@ async def _play_or_leave(chat_id: int):
             pass
         return
     try:
-        await call_py.play(chat_id, MediaStream(track["file"]))
+        # Sıradaki parça için akış URL'sini ÇALMADAN HEMEN ÖNCE tazele
+        # (YouTube URL'leri kısa ömürlüdür; enqueue anındaki URL süre dolmuş olabilir).
+        stream_url, _, _ = await get_audio_stream(track["query"])
+        if not stream_url:
+            raise RuntimeError("Akış URL'si alınamadı")
+        await call_py.play(chat_id, MediaStream(stream_url))
     except Exception as e:
         print(f"[_play_or_leave] Çalma hatası: {e}")
         failed = queues.pop_current(chat_id)
@@ -158,8 +163,8 @@ async def play_cmd(client: Client, message: Message):
         )
         return
 
-    await status_msg.edit(f"⬇️ İndiriliyor: **{query}**...")
-    file_path, title, duration = await download_audio(query)
+    await status_msg.edit(f"⬇️ Hazırlanıyor: **{query}**...")
+    file_path, title, duration = await get_audio_stream(query)
     if not file_path:
         await status_msg.edit(
             f"❌ Şarkı bulunamadı veya indirilemedi.\n"
@@ -168,7 +173,7 @@ async def play_cmd(client: Client, message: Message):
         return
 
     requester = message.from_user.first_name if message.from_user else "Bilinmiyor"
-    track = {"file": file_path, "title": title, "duration": duration, "requester": requester}
+    track = {"query": query, "title": title, "duration": duration, "requester": requester}
 
     async with get_lock(chat_id):
         already_playing = bool(queues.get_current(chat_id))
