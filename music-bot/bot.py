@@ -8,7 +8,7 @@ from pytgcalls.types import MediaStream, StreamEnded
 from pytgcalls.exceptions import NoActiveGroupCall
 
 from queue_manager import QueueManager
-from downloader import get_audio_stream, clear_downloads, safe_remove
+from downloader import get_audio_stream, download_audio, clear_downloads, safe_remove
 
 load_dotenv()
 
@@ -109,6 +109,40 @@ async def ensure_assistant_in_chat(chat_id: int) -> bool:
     return False
 
 
+async def _play_query(chat_id: int, track: dict, prefetched_url=None) -> bool:
+    """track'i çalar: önce doğrudan URL akışı (hızlı), başarısız olursa indirip
+    yerel dosyadan (güvenli yedek). NoActiveGroupCall yukarı fırlatılır.
+    Başarılıysa True döner."""
+    url = prefetched_url
+    if url is None:
+        # Sıradaki parça için URL'yi ÇALMADAN HEMEN ÖNCE tazele
+        # (YouTube URL'leri kısa ömürlüdür; enqueue anındaki URL süre dolmuş olabilir).
+        url, _, _ = await get_audio_stream(track["query"])
+    if url:
+        try:
+            await call_py.play(chat_id, MediaStream(url))
+            return True
+        except NoActiveGroupCall:
+            raise
+        except Exception as e:
+            print(f"[play] URL akışı başarısız ({type(e).__name__}: {e!r}), indirmeye düşülüyor")
+    # Yedek yol: bazı YouTube formatları (ör. DASH m4a) doğrudan akmaz → indir + yerel dosya
+    local_path, _, _ = await download_audio(track["query"])
+    if not local_path:
+        return False
+    track["file"] = local_path
+    try:
+        await call_py.play(chat_id, MediaStream(local_path))
+        return True
+    except NoActiveGroupCall:
+        raise
+    except Exception as e:
+        print(f"[play] Yerel dosya da çalınamadı ({type(e).__name__}: {e!r})")
+        safe_remove(local_path)
+        track.pop("file", None)
+        return False
+
+
 async def _play_or_leave(chat_id: int):
     """Sıradaki parçayı çalar, sıra boşsa sesli sohbetten ayrılır.
     DİKKAT: Çağıran taraf get_lock(chat_id) kilidini tutuyor olmalı."""
@@ -120,14 +154,11 @@ async def _play_or_leave(chat_id: int):
             pass
         return
     try:
-        # Sıradaki parça için akış URL'sini ÇALMADAN HEMEN ÖNCE tazele
-        # (YouTube URL'leri kısa ömürlüdür; enqueue anındaki URL süre dolmuş olabilir).
-        stream_url, _, _ = await get_audio_stream(track["query"])
-        if not stream_url:
-            raise RuntimeError("Akış URL'si alınamadı")
-        await call_py.play(chat_id, MediaStream(stream_url))
+        ok = await _play_query(chat_id, track)
     except Exception as e:
-        print(f"[_play_or_leave] Çalma hatası: {e}")
+        print(f"[_play_or_leave] Çalma hatası ({type(e).__name__}: {e!r})")
+        ok = False
+    if not ok:
         failed = queues.pop_current(chat_id)
         if failed:
             safe_remove(failed.get("file"))
@@ -187,23 +218,22 @@ async def play_cmd(client: Client, message: Message):
             )
         else:
             try:
-                await call_py.play(chat_id, MediaStream(file_path))
-                await status_msg.edit(
-                    f"▶️ Çalınıyor: **{title}**\n⏱ Süre: {format_duration(duration)}\n\n"
-                    f"❤️ ( Seni Seviyorum Gamzelim )"
-                )
+                ok = await _play_query(chat_id, track, prefetched_url=file_path)
             except NoActiveGroupCall:
                 queues.clear(chat_id)
-                safe_remove(file_path)
                 await status_msg.edit(
                     "❌ Grupta aktif sesli sohbet bulunamadı.\n"
                     "Lütfen önce sesli sohbet başlatın, sonra tekrar deneyin."
                 )
-            except Exception as e:
-                print(f"[play_cmd] Çalma hatası: {e}")
-                queues.clear(chat_id)
-                safe_remove(file_path)
-                await status_msg.edit("❌ Müzik çalınamadı. Lütfen tekrar deneyin.")
+            else:
+                if ok:
+                    await status_msg.edit(
+                        f"▶️ Çalınıyor: **{title}**\n⏱ Süre: {format_duration(duration)}\n\n"
+                        f"❤️ ( Seni Seviyorum Gamzelim )"
+                    )
+                else:
+                    queues.clear(chat_id)
+                    await status_msg.edit("❌ Müzik çalınamadı. Lütfen tekrar deneyin.")
 
 
 @app.on_message(filters.command(["skip", "atla", "geç", "gec"]) & filters.group)
