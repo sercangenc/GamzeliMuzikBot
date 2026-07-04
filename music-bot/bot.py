@@ -1,5 +1,6 @@
 import asyncio
 import os
+import re
 from dotenv import load_dotenv
 from pyrogram import Client, filters, idle
 from pyrogram.types import Message
@@ -165,16 +166,36 @@ async def _play_or_leave(chat_id: int):
         await _play_or_leave(chat_id)
 
 
-@app.on_message(filters.command(["play", "oynat", "çal", "cal"]) & filters.group)
-async def play_cmd(client: Client, message: Message):
-    if len(message.command) < 2:
-        await message.reply("Kullanım: `/play <şarkı adı veya YouTube linki>`")
-        return
+# Sosyal medya / video platform linklerini (reels dahil) algılayan desen
+_MEDIA_URL_RE = re.compile(
+    r"https?://\S*(?:"
+    r"instagram\.com|instagr\.am|"
+    r"tiktok\.com|"
+    r"youtube\.com|youtu\.be|"
+    r"twitter\.com|x\.com|"
+    r"facebook\.com|fb\.watch|fb\.com|"
+    r"reddit\.com|redd\.it|"
+    r"twitch\.tv|"
+    r"soundcloud\.com|"
+    r"pinterest\.|pin\.it"
+    r")\S*",
+    re.IGNORECASE,
+)
 
-    query = " ".join(message.command[1:])
-    status_msg = await message.reply(f"🔍 Aranıyor: **{query}**...")
 
+def _first_media_url(text: str):
+    """Metindeki ilk desteklenen video/reels linkini döndürür (yoksa None)."""
+    if not text:
+        return None
+    m = _MEDIA_URL_RE.search(text)
+    return m.group(0) if m else None
+
+
+async def start_playback(message: Message, query: str, label: str = None):
+    """Ortak çalma akışı: /play komutu ve otomatik link algılama bunu kullanır."""
     chat_id = message.chat.id
+    label = label or query
+    status_msg = await message.reply(f"🔍 Aranıyor: **{label}**...")
 
     # Asistanın grupta olduğundan emin ol; gerekirse otomatik ekle/katıl
     try:
@@ -194,12 +215,12 @@ async def play_cmd(client: Client, message: Message):
         )
         return
 
-    await status_msg.edit(f"⬇️ Hazırlanıyor: **{query}**...")
+    await status_msg.edit(f"⬇️ Hazırlanıyor: **{label}**...")
     file_path, title, duration = await get_audio_stream(query)
     if not file_path:
         await status_msg.edit(
-            f"❌ Şarkı bulunamadı veya indirilemedi.\n"
-            f"💡 YouTube linki yerine şarkı adı deneyin (veya tam tersi)."
+            f"❌ İçerik bulunamadı veya indirilemedi.\n"
+            f"💡 Şarkı adı, YouTube linki ya da geçerli bir video/reels linki deneyin."
         )
         return
 
@@ -234,6 +255,15 @@ async def play_cmd(client: Client, message: Message):
                 else:
                     queues.clear(chat_id)
                     await status_msg.edit("❌ Müzik çalınamadı. Lütfen tekrar deneyin.")
+
+
+@app.on_message(filters.command(["play", "oynat", "çal", "cal"]) & filters.group)
+async def play_cmd(client: Client, message: Message):
+    if len(message.command) < 2:
+        await message.reply("Kullanım: `/play <şarkı adı veya link>`")
+        return
+    query = " ".join(message.command[1:])
+    await start_playback(message, query)
 
 
 @app.on_message(filters.command(["skip", "atla", "geç", "gec"]) & filters.group)
@@ -320,9 +350,27 @@ async def help_cmd(client: Client, message: Message):
         "▶️ `/resume` (`/devam`) — Devam et\n"
         "⏹ `/stop` (`/durdur`) — Durdur ve sesli sohbetten ayrıl\n"
         "📋 `/queue` (`/sıra`) — Müzik sırasını göster\n\n"
-        "💡 YouTube linki veya şarkı adı yazabilirsiniz.\n"
+        "💡 Şarkı adı, YouTube linki veya bir video/reels linki (Instagram, TikTok, X, Facebook...) yazabilirsiniz.\n"
+        "🎬 Gruba doğrudan bir video/reels linki atmanız da yeterli — otomatik çalarım.\n"
         "⚠️ Kullanmadan önce grupta sesli sohbet açık olmalıdır."
     )
+
+
+@app.on_message(filters.group & filters.text)
+async def media_link_cmd(client: Client, message: Message):
+    """Gruba atılan video/reels linklerini otomatik indirip çalar (/play gerekmez).
+
+    NOT: Botun komut olmayan mesajları görebilmesi için BotFather'da botun
+    gizlilik (privacy) modu KAPALI olmalıdır. Bu handler tüm komut
+    handler'larından SONRA kayıtlıdır; komut mesajları buraya ulaşmaz.
+    """
+    text = message.text or ""
+    if text.startswith("/"):
+        return  # komutlar kendi handler'larında işlenir
+    url = _first_media_url(text)
+    if not url:
+        return
+    await start_playback(message, url, label="🎬 Bağlantı içeriği")
 
 
 @call_py.on_update()

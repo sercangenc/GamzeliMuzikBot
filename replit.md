@@ -51,11 +51,20 @@ Her komutun Türkçe alias'ları da vardır (parantez içinde):
 - `/queue` (`/sıra`, `/sira`, `/kuyruk`) — Sırayı göster
 - `/help` (`/yardım`, `/yardim`, `/start`) — Yardım mesajı
 
+### Otomatik link algılama (komutsuz)
+
+Gruba doğrudan atılan video/reels linkleri `/play` yazmadan otomatik algılanıp çalınır. Desteklenen platformlar: Instagram, TikTok, YouTube (shorts dahil), X/Twitter, Facebook, Reddit, Twitch, SoundCloud, Pinterest (yt-dlp neyi çözebiliyorsa).
+
+- **KRİTİK — BotFather gizlilik modu KAPALI olmalı**: Botlar varsayılan olarak "privacy mode" AÇIK gelir ve grupta yalnızca komutları/kendisine yapılan yanıtları görür; düz link mesajlarını GÖRMEZ. Otomatik algılamanın çalışması için @BotFather → `/setprivacy` → botu seç → **Disable**. Bu yapılmazsa `/play <link>` çalışır ama komutsuz link algılama çalışmaz.
+- Instagram reels çoğu zaman giriş/cookie ister; yt-dlp auth olmadan sık başarısız olabilir. TikTok/YouTube genelde sorunsuz. Başarısızlıkta bot "İçerik bulunamadı" mesajı verir.
+- Handler (`media_link_cmd`) tüm komut handler'larından SONRA kayıtlıdır (Pyrogram'da aynı grupta ilk eşleşen kazanır) ve `text.startswith("/")` ile komutları atlar → komutları yutmaz.
+
 ## Kullanım
 
 1. Botu gruba ekle ve admin yap (sesli sohbet için gerekli)
-2. Grupta bir sesli sohbet başlat
-3. `/play şarkı adı` yaz
+2. (Otomatik link algılama isteniyorsa) BotFather'da gizlilik modunu kapat
+3. Grupta bir sesli sohbet başlat
+4. `/play şarkı adı` yaz **veya** doğrudan bir video/reels linki at
 
 ## Architecture decisions
 

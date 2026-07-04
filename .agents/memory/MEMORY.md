@@ -1,2 +1,3 @@
 - [Publish "nothing to publish" fix](publish-detection-recreate-artifact.md) — deployable web artifact exists but Publish can't see it → rm -rf + createArtifact() to re-register; artifactId being a path string is normal, not the cause.
 - [Telegram session single-instance](telegram-session-single-instance.md) — one assistant session string can't run in two places; dev workflow + published VM both running bot.py crash with AUTH_KEY_DUPLICATED. Run bot ONLY in prod.
+- [Bot non-command messages](telegram-bot-message-handlers.md) — bot needs BotFather privacy OFF to see plain/link messages; register catch-all text handler LAST so it doesn't swallow commands.
