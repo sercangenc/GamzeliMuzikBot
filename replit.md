@@ -56,8 +56,16 @@ Her komutun Türkçe alias'ları da vardır (parantez içinde):
 Gruba doğrudan atılan video/reels linkleri `/play` yazmadan otomatik algılanıp çalınır. Desteklenen platformlar: Instagram, TikTok, YouTube (shorts dahil), X/Twitter, Facebook, Reddit, Twitch, SoundCloud, Pinterest (yt-dlp neyi çözebiliyorsa).
 
 - **KRİTİK — BotFather gizlilik modu KAPALI olmalı**: Botlar varsayılan olarak "privacy mode" AÇIK gelir ve grupta yalnızca komutları/kendisine yapılan yanıtları görür; düz link mesajlarını GÖRMEZ. Otomatik algılamanın çalışması için @BotFather → `/setprivacy` → botu seç → **Disable**. Bu yapılmazsa `/play <link>` çalışır ama komutsuz link algılama çalışmaz.
-- Instagram reels çoğu zaman giriş/cookie ister; yt-dlp auth olmadan sık başarısız olabilir. TikTok/YouTube genelde sorunsuz. Başarısızlıkta bot "İçerik bulunamadı" mesajı verir.
+- Instagram reels çoğu zaman giriş/cookie ister; yt-dlp auth olmadan sık başarısız olabilir ("empty media response"). Datacenter IP'sinden bazı YouTube içerikleri de "Sign in to confirm you're not a bot" ile çerez ister. TikTok ve çoğu link çerezsiz çalışır. Başarısızlıkta bot açıklayıcı mesaj verir.
 - Handler (`media_link_cmd`) tüm komut handler'larından SONRA kayıtlıdır (Pyrogram'da aynı grupta ilk eşleşen kazanır) ve `text.startswith("/")` ile komutları atlar → komutları yutmaz.
+
+### Çerez (cookie) desteği — Instagram/girişli YouTube için
+
+- yt-dlp'ye çerez vermek, girişsiz açılmayan içerikleri (Instagram reels, bazı YouTube) açar.
+- **Kurulum:** `YTDLP_COOKIES` secret'ına, giriş yapmış bir tarayıcıdan **Netscape formatında** dışa aktarılmış `cookies.txt` dosyasının TÜM içeriği yazılır (ör. "Get cookies.txt LOCALLY" eklentisi). `downloader.py` bunu açılışta `music-bot/cookies.txt`'ye yazar ve tüm yt-dlp çağrılarına `cookiefile` olarak geçer.
+- Secret yoksa bot çerezsiz çalışır (hiçbir şey bozulmaz); yalnızca girişli içerik başarısız olur.
+- `music-bot/cookies.txt` `.gitignore`'dadır — çerez içeriği (kimlik bilgisi) repoya COMMIT EDİLMEZ.
+- Çerezler zamanla geçersizleşir; Instagram tekrar başarısız olmaya başlarsa secret'ı taze çerezlerle güncelleyin.
 
 ## Kullanım
 

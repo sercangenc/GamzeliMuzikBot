@@ -220,7 +220,9 @@ async def start_playback(message: Message, query: str, label: str = None):
     if not file_path:
         await status_msg.edit(
             f"❌ İçerik bulunamadı veya indirilemedi.\n"
-            f"💡 Şarkı adı, YouTube linki ya da geçerli bir video/reels linki deneyin."
+            f"💡 Şarkı adı veya farklı bir link deneyin.\n"
+            f"ℹ️ Instagram ve bazı YouTube içerikleri giriş (çerez) ister; "
+            f"TikTok ve çoğu link çerezsiz de çalışır."
         )
         return
 

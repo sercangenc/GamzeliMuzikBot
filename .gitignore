@@ -10,3 +10,4 @@ dist/
 .eggs/
 *.egg-info/
 .env_to_deploy
+music-bot/cookies.txt

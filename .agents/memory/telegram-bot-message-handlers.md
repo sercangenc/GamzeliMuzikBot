@@ -18,4 +18,9 @@ All `@app.on_message` handlers default to handler group 0. Pyrogram dispatches t
 **How to apply:** register the catch-all link/text handler LAST (after every command handler in file order), and additionally guard with `if text.startswith("/"): return`. Command handlers then win, and the guard is defense-in-depth.
 
 ## yt-dlp for social video platforms
-The existing `bestaudio/best` download + the URL-extraction fallback loop already handle video-only platforms (TikTok/Instagram/etc.) — they carry a combined mp4 whose audio ffmpeg extracts. Instagram frequently needs login/cookies and fails without them; TikTok/YouTube generally work. Failures surface as the normal "İçerik bulunamadı" message via the existing download fallback.
+The existing `bestaudio/best` download + the URL-extraction fallback loop already handle video-only platforms (TikTok/Instagram/etc.) — they carry a combined mp4 whose audio ffmpeg extracts. Failures surface as the normal "İçerik bulunamadı" message via the existing download fallback.
+
+## Auth-walled content needs cookies (Instagram + datacenter-IP YouTube)
+From a datacenter IP (published VM), yt-dlp frequently fails on **Instagram** ("Instagram sent an empty media response ... use --cookies") and on **some YouTube** videos ("Sign in to confirm you're not a bot"). This is NOT a code bug — it is platform anti-bot / login-walling keyed to IP reputation. TikTok and most links still work cookieless.
+**The only reliable fix is cookies.** `--cookies-from-browser` is impossible on a headless server. So support a Netscape-format cookies file: read a `YTDLP_COOKIES` secret, materialize it to `music-bot/cookies.txt` on startup, and pass it as yt-dlp `cookiefile` on every call. Keep it opt-in (no secret → run cookieless, nothing breaks). Gitignore the cookies file — it contains the user's session credentials. Cookies expire, so plan for periodic refresh of the secret.
+

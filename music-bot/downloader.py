@@ -10,6 +10,30 @@ import yt_dlp
 DOWNLOADS_DIR = os.path.join(os.path.dirname(__file__), "downloads")
 os.makedirs(DOWNLOADS_DIR, exist_ok=True)
 
+COOKIES_FILE = os.path.join(os.path.dirname(__file__), "cookies.txt")
+
+
+def _ensure_cookies() -> Optional[str]:
+    """yt-dlp için çerez dosyasını hazırlar.
+
+    Öncelik: ortamdaki YTDLP_COOKIES secret'ı (Netscape formatı) → cookies.txt'ye yazılır.
+    Yoksa mevcut bir cookies.txt varsa o kullanılır. Hiçbiri yoksa None (çerezsiz devam).
+    Instagram ve bazı YouTube içerikleri girişsiz açılmadığı için çerez şarttır.
+    """
+    content = os.environ.get("YTDLP_COOKIES")
+    if content:
+        try:
+            with open(COOKIES_FILE, "w") as f:
+                f.write(content)
+        except OSError as e:
+            print(f"[downloader] cookies.txt yazılamadı: {e}")
+    return COOKIES_FILE if os.path.exists(COOKIES_FILE) else None
+
+
+_COOKIES = _ensure_cookies()
+if _COOKIES:
+    print("[downloader] Çerez dosyası bulundu — Instagram/YouTube girişli içerik desteklenir.")
+
 
 def safe_remove(path: Optional[str]):
     """Bir dosyayı güvenle siler, hata olursa yok sayar."""
@@ -66,6 +90,8 @@ def _sync_download(query: str) -> Tuple[Optional[str], Optional[str], int]:
         ],
         "default_search": "ytsearch1" if not _is_url(query) else None,
     }
+    if _COOKIES:
+        ydl_opts["cookiefile"] = _COOKIES
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -112,6 +138,8 @@ def _sync_get_stream(query: str) -> Tuple[Optional[str], Optional[str], int]:
         "retries": 3,
         "default_search": "ytsearch1" if not _is_url(query) else None,
     }
+    if _COOKIES:
+        ydl_opts["cookiefile"] = _COOKIES
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
